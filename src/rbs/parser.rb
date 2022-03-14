@@ -1,5 +1,13 @@
 #!/usr/bin/env ruby
 
+class String
+  def match?(pattern)
+    pattern = Regexp.new(Regexp.escape(pattern)) unless pattern.is_a?(Regexp)
+    !!(self =~ pattern)
+  end
+end
+
+
 begin
   require 'rbs'
 rescue LoadError

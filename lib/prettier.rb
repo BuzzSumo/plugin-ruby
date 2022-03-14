@@ -3,6 +3,14 @@
 require 'json' unless defined?(JSON)
 require 'open3'
 
+class String
+  def match?(pattern)
+    pattern = Regexp.new(Regexp.escape(pattern)) unless pattern.is_a?(Regexp)
+    !!(self =~ pattern)
+  end
+end
+
+
 module Prettier
   PLUGIN = -File.expand_path('..', __dir__)
   BINARY = -File.join(PLUGIN, 'node_modules', 'prettier', 'bin-prettier.js')

@@ -2,6 +2,14 @@
 
 require 'ripper'
 
+class String
+  def match?(pattern)
+    pattern = Regexp.new(Regexp.escape(pattern)) unless pattern.is_a?(Regexp)
+    !!(self =~ pattern)
+  end
+end
+
+
 begin
   require 'haml'
 rescue LoadError
