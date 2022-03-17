@@ -68,47 +68,49 @@ listener =
       break if quit
 
       # Start up a new thread that will handle each successive connection.
-      Thread.new(server.accept_nonblock) do |socket|
-        begin
-            parser, source = socket.read.force_encoding('UTF-8').split('|', 2)
+      begin
+        Thread.new(server.accept_nonblock) do |socket|
+          begin
+              parser, source = socket.read.force_encoding('UTF-8').split('|', 2)
 
-          response =
-            case parser
-            when 'ping'
-              'pong'
-            when 'ruby'
-              SyntaxTree.parse(source)
-            when 'rbs'
-              Prettier::RBSParser.parse(source)
-            when 'haml'
-              Prettier::HAMLParser.parse(source)
+            response =
+              case parser
+              when 'ping'
+                'pong'
+              when 'ruby'
+                SyntaxTree.parse(source)
+              when 'rbs'
+                Prettier::RBSParser.parse(source)
+              when 'haml'
+                Prettier::HAMLParser.parse(source)
+              end
+
+            if response
+              socket.write(JSON.fast_generate(response))
+            else
+              socket.write('{ "error": true }')
             end
-
-          if response
-            socket.write(JSON.fast_generate(response))
-          else
-            socket.write('{ "error": true }')
+          rescue SyntaxTree::ParseError => error
+            loc = { start: { line: error.lineno, column: error.column } }
+            socket.write(JSON.fast_generate(error: error.message, loc: loc))
+          rescue StandardError => error
+            begin
+              socket.write(JSON.fast_generate(error: error.message))
+            rescue Errno::EPIPE
+              # Do nothing, the pipe has been closed by the parent process so we don't
+              # actually care about writing to it anymore.
+            end
+          ensure
+            socket.close
           end
-      rescue SyntaxTree::ParseError => error
-        loc = { start: { line: error.lineno, column: error.column } }
-        socket.write(JSON.fast_generate(error: error.message, loc: loc))
-      rescue StandardError => error
-        begin
-          socket.write(JSON.fast_generate(error: error.message))
-        rescue Errno::EPIPE
-          # Do nothing, the pipe has been closed by the parent process so we don't
-          # actually care about writing to it anymore.
-        end
-      ensure
-        socket.close
-      end
-    rescue IO::WaitReadable, Errno::EINTR
-      # Wait for select(2) to give us a connection that has content for 1
-      # second. Otherwise timeout and continue on (so that we hit our
-      # "break if quit" pretty often).
-      IO.select([server], nil, nil, 1)
+      rescue IO::WaitReadable, Errno::EINTR
+        # Wait for select(2) to give us a connection that has content for 1
+        # second. Otherwise timeout and continue on (so that we hit our
+        # "break if quit" pretty often).
+        IO.select([server], nil, nil, 1)
 
-      retry unless quit
+        retry unless quit
+      end
     end
   end
 
