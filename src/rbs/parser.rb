@@ -1,13 +1,5 @@
 #!/usr/bin/env ruby
 
-class String
-  def match?(pattern)
-    pattern = Regexp.new(Regexp.escape(pattern)) unless pattern.is_a?(Regexp)
-    !!(self =~ pattern)
-  end
-end
-
-
 begin
   require 'rbs'
 rescue LoadError
@@ -24,6 +16,16 @@ rescue LoadError
     end
   end
 end
+
+
+class String
+  def match?(pattern)
+    pattern = Regexp.new(Regexp.escape(pattern)) unless pattern.is_a?(Regexp)
+    !!(self =~ pattern)
+  end
+end
+
+
 
 # This was removed at some point, so we need to support both versions.
 RBS::KEYWORD_RAW =
