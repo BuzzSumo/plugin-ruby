@@ -103,6 +103,7 @@ listener =
           ensure
             socket.close
           end
+        end
       rescue IO::WaitReadable, Errno::EINTR
         # Wait for select(2) to give us a connection that has content for 1
         # second. Otherwise timeout and continue on (so that we hit our

@@ -23,8 +23,6 @@ rescue LoadError
       false
     end
   end
-
-  return
 end
 
 # This was removed at some point, so we need to support both versions.
