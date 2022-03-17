@@ -69,25 +69,26 @@ listener =
 
       # Start up a new thread that will handle each successive connection.
       Thread.new(server.accept_nonblock) do |socket|
-        parser, source = socket.read.force_encoding('UTF-8').split('|', 2)
+        begin
+            parser, source = socket.read.force_encoding('UTF-8').split('|', 2)
 
-        response =
-          case parser
-          when 'ping'
-            'pong'
-          when 'ruby'
-            SyntaxTree.parse(source)
-          when 'rbs'
-            Prettier::RBSParser.parse(source)
-          when 'haml'
-            Prettier::HAMLParser.parse(source)
+          response =
+            case parser
+            when 'ping'
+              'pong'
+            when 'ruby'
+              SyntaxTree.parse(source)
+            when 'rbs'
+              Prettier::RBSParser.parse(source)
+            when 'haml'
+              Prettier::HAMLParser.parse(source)
+            end
+
+          if response
+            socket.write(JSON.fast_generate(response))
+          else
+            socket.write('{ "error": true }')
           end
-
-        if response
-          socket.write(JSON.fast_generate(response))
-        else
-          socket.write('{ "error": true }')
-        end
       rescue SyntaxTree::ParseError => error
         loc = { start: { line: error.lineno, column: error.column } }
         socket.write(JSON.fast_generate(error: error.message, loc: loc))
@@ -114,16 +115,18 @@ listener =
 # Map each candidate connection method to a thread that will check if it works.
 candidates.map! do |candidate|
   Thread.new do
-    Thread.current.report_on_exception = false
+    begin
+      Thread.current.report_on_exception = false
 
-    # We do not care about stderr here, so throw it away
-    stdout, _stderr, status =
-      Open3.capture3("#{candidate} #{information}", stdin_data: 'ping')
+      # We do not care about stderr here, so throw it away
+      stdout, _stderr, status =
+        Open3.capture3("#{candidate} #{information}", stdin_data: 'ping')
 
-    candidate if JSON.parse(stdout) == 'pong' && status.exitstatus == 0
-  rescue StandardError
-    # We don't actually care if this fails, because we'll just skip that
-    # connection option.
+      candidate if JSON.parse(stdout) == 'pong' && status.exitstatus == 0
+    rescue StandardError
+      # We don't actually care if this fails, because we'll just skip that
+      # connection option.
+    end
   end
 end
 
